@@ -1,11 +1,14 @@
-name: 'Your name here'
-description: 'Provide a description here'
-author: 'Your name or organization here'
+name: 'tag-differ'
+description: 'Diff firebase tags'
+author: 'Invertase'
 inputs:
-  milliseconds: # change this
+  extenstions:
     required: true
-    description: 'input description here'
-    default: 'default value if applicable'
+    description: 'comma seperated list of file extensions to include'
+    default: 'js,kt,java,swift'
+  github-token:
+    required: true
+    description: 'github token'
 runs:
   using: 'node16'
   main: 'dist/index.js'
