@@ -5,10 +5,7 @@ inputs:
   extensions:
     required: true
     description: 'comma seperated list of file extensions to include'
-    default: 'js,kt,java,swift'
-  repo-url:
-    required: true
-    description: 'repo url to compare against'
+    default: 'js,ts,kt,java,swift'
   base-ref:
     required: false
     description: 'base ref to compare against'
