@@ -10,7 +10,7 @@ inputs:
     required: true
     description: 'repo url to compare against'
   base-ref:
-    required: true
+    required: false
     description: 'base ref to compare against'
 runs:
   using: 'node16'
