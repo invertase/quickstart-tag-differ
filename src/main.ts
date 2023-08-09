@@ -5,11 +5,9 @@ import * as github from '@actions/github'
 import * as exec from '@actions/exec'
 
 function getBaseRef(): string | undefined {
-  const baseRef = core.getInput('base-ref')
-  if (!baseRef) {
-    return undefined
-  }
-  return baseRef || github.context.payload.pull_request?.base.ref
+  return (
+    core.getInput('base-ref') || github.context.payload.pull_request?.base.ref
+  )
 }
 
 function assertBaseRef(baseRef?: string): asserts baseRef is string {
