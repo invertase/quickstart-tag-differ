@@ -46,11 +46,7 @@ const github = __importStar(__nccwpck_require__(5438));
 const exec = __importStar(__nccwpck_require__(1514));
 function getBaseRef() {
     var _a;
-    const baseRef = core.getInput('base-ref');
-    if (!baseRef) {
-        return undefined;
-    }
-    return baseRef || ((_a = github.context.payload.pull_request) === null || _a === void 0 ? void 0 : _a.base.ref);
+    return (core.getInput('base-ref') || ((_a = github.context.payload.pull_request) === null || _a === void 0 ? void 0 : _a.base.ref));
 }
 function assertBaseRef(baseRef) {
     if (!baseRef) {
