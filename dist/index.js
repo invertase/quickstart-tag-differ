@@ -70,28 +70,28 @@ function getTitleAndWarningMessage(docTag) {
     const { type, changeType } = docTag;
     // changeType should always be code_contents for added tags
     if (type === 'added' && changeType === 'code_contents') {
-        return ['New tag added', `Added doc tag ${docTag.tagName}`];
+        return ['New tag added', `Added doc tag \`${docTag.tagName}\``];
     }
     // changeType should always be code_contents for removed tags
     if (type === 'removed' && changeType === 'code_contents') {
-        return ['Removed tag', `Removed doc tag ${docTag.tagName}`];
+        return ['Removed tag', `Removed doc tag \`${docTag.tagName}\``];
     }
     if (type === 'changed') {
         switch (changeType) {
             case 'code_contents':
                 return [
                     'Tag edited',
-                    `Changed code contents of doc tag ${docTag.tagName}`
+                    `Changed code contents of doc tag \`${docTag.tagName}\``
                 ];
             case 'file_path':
                 return [
                     'File renamed',
-                    `File renamed containing doc tag ${docTag.tagName} to ${docTag.filePath}`
+                    `File renamed containing doc tag \`${docTag.tagName}\` to \`${docTag.filePath}\``
                 ];
             case 'line_number':
                 return [
                     'Tag moved',
-                    `Line number changed for doc tag ${docTag.tagName} in file ${docTag.filePath}`
+                    `Line number changed for doc tag \`${docTag.tagName}\` in file \`${docTag.filePath}\``
                 ];
         }
     }
