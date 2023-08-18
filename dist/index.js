@@ -76,6 +76,9 @@ function getTitleAndWarningMessage(docTag) {
     if (type === 'removed' && changeType === 'code_contents') {
         return ['Removed tag', `Removed doc tag \`${docTag.tagName}\``];
     }
+    const repoName = github.context.repo.repo;
+    const paths = docTag.filePath.split(repoName);
+    const filePath = paths[paths.length - 1].replace(/^\//, '');
     if (type === 'changed') {
         switch (changeType) {
             case 'code_contents':
@@ -86,12 +89,12 @@ function getTitleAndWarningMessage(docTag) {
             case 'file_path':
                 return [
                     'File renamed',
-                    `File renamed containing doc tag \`${docTag.tagName}\` to \`${docTag.filePath}\``
+                    `File renamed containing doc tag \`${docTag.tagName}\` to \`${filePath}\``
                 ];
             case 'line_number':
                 return [
                     'Tag moved',
-                    `Line number changed for doc tag \`${docTag.tagName}\` in file \`${docTag.filePath}\``
+                    `Line number changed for doc tag \`${docTag.tagName}\` in file \`${filePath}\``
                 ];
         }
     }
