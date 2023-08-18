@@ -60,20 +60,68 @@ function checkoutRef(ref, cwd) {
         yield exec.exec('git', ['pull'], { cwd });
     });
 }
+function annotatePR(docTagDiffs) {
+    for (const docTag of docTagDiffs) {
+        const [title, message] = getTitleAndWarningMessage(docTag);
+        core.warning(message, getAnnotationProperties(title, docTag));
+    }
+}
+function getTitleAndWarningMessage(docTag) {
+    const { type, changeType } = docTag;
+    // changeType should always be code_contents for added tags
+    if (type === 'added' && changeType === 'code_contents') {
+        return ['New tag added', `Added doc tag ${docTag.tagName}`];
+    }
+    // changeType should always be code_contents for removed tags
+    if (type === 'removed' && changeType === 'code_contents') {
+        return ['Removed tag', `Removed doc tag ${docTag.tagName}`];
+    }
+    if (type === 'changed') {
+        switch (changeType) {
+            case 'code_contents':
+                return [
+                    'Tag edited',
+                    `Changed code contents of doc tag ${docTag.tagName}`
+                ];
+            case 'file_path':
+                return [
+                    'File renamed',
+                    `File renamed containing doc tag ${docTag.tagName} to ${docTag.filePath}`
+                ];
+            case 'line_number':
+                return [
+                    'Tag moved',
+                    `Line number changed for doc tag ${docTag.tagName} in file ${docTag.filePath}`
+                ];
+        }
+    }
+    return [
+        'Unknown error',
+        new Error(`Unknown type ${type} and changeType ${changeType}`)
+    ];
+}
+function getAnnotationProperties(titleOrError, docTag) {
+    return {
+        title: titleOrError.toString(),
+        file: docTag.filePath,
+        startLine: docTag.codeStartLine,
+        endLine: docTag.codeEndLine
+    };
+}
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            core.setOutput('time', new Date().toTimeString());
             const extensions = core.getInput('extensions').split(',');
+            if (!extensions.length) {
+                throw new Error('No extensions provided');
+            }
             const baseRef = getBaseRef();
             assertBaseRef(baseRef);
             const cwd = process.env['GITHUB_WORKSPACE'] || process.cwd();
-            const baseRefTags = (0, utils_1.extractDocTags)(cwd, extensions);
-            const foo = yield exec.getExecOutput('git', ['branch', '-v']);
-            console.log(foo.stdout);
+            const currentTags = (0, utils_1.extractDocTags)(cwd, extensions);
             yield checkoutRef(baseRef, cwd);
-            const currentRefTags = (0, utils_1.extractDocTags)(cwd, extensions);
-            const docTagDiffs = (0, utils_1.findDocTagDiffs)(currentRefTags, baseRefTags);
+            const baseRefTags = (0, utils_1.extractDocTags)(cwd, extensions);
+            const docTagDiffs = (0, utils_1.findDocTagDiffs)(baseRefTags, currentTags);
             if (!github.context.payload.pull_request) {
                 console.dir(JSON.stringify(docTagDiffs, null, 2));
                 return;
@@ -87,42 +135,6 @@ function run() {
     });
 }
 run();
-function annotatePR(docTagDiffs) {
-    for (const docTag of docTagDiffs) {
-        core.warning(getWarningMessage(docTag), getAnnotationProperties(docTag));
-    }
-}
-function getWarningMessage(docTag) {
-    const { type, changeType } = docTag;
-    // changeType should always be code_contents for added tags
-    if (type === 'added' && changeType === 'code_contents') {
-        return `Added doc tag ${docTag.tagName}`;
-    }
-    // changeType should always be code_contents for removed tags
-    if (type === 'removed' && changeType === 'code_contents') {
-        return `Removed doc tag ${docTag.tagName}`;
-    }
-    if (type === 'changed') {
-        switch (changeType) {
-            case 'code_contents':
-                return `Changed code contents of doc tag ${docTag.tagName}`;
-            case 'file_path':
-                return `File renamed containing doc tag ${docTag.tagName} to ${docTag.filePath}`;
-            case 'line_number':
-                return `Line number changed for doc tag ${docTag.tagName} in file ${docTag.filePath}`;
-        }
-    }
-    return new Error(`Unknown type ${type} and changeType ${changeType}`);
-}
-function getAnnotationProperties(docTag) {
-    const file = docTag.filePath;
-    return {
-        title: docTag.tagName,
-        file,
-        startLine: docTag.codeStartLine,
-        endLine: docTag.codeEndLine
-    };
-}
 
 
 /***/ }),
