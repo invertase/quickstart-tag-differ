@@ -4,6 +4,8 @@ import { DocTagDiff, extractDocTags, findDocTagDiffs } from './utils'
 import * as github from '@actions/github'
 import * as exec from '@actions/exec'
 
+const octokit = github.getOctokit(core.getInput('github-token'))
+
 function getBaseRef(): string | undefined {
   return (
     core.getInput('base-ref') || github.context.payload.pull_request?.base.ref
@@ -87,6 +89,14 @@ function getAnnotationProperties(
   }
 }
 
+async function commentOnPr(docTagDiffs: DocTagDiff[]): Promise<void> {
+  const identifier = '[dtd]: doc-tag-diff'
+  const pull = await octokit.rest.pulls.listCommentsForReview()
+  core.debug(identifier)
+  core.debug(JSON.stringify(docTagDiffs, null, 2))
+  core.debug(JSON.stringify(pull.data, null, 2))
+}
+
 async function run(): Promise<void> {
   try {
     const extensions = core.getInput('extensions').split(',')
@@ -109,6 +119,7 @@ async function run(): Promise<void> {
     }
 
     annotatePR(docTagDiffs)
+    await commentOnPr(docTagDiffs)
   } catch (error) {
     if (error instanceof Error) core.setFailed(error.message)
   }

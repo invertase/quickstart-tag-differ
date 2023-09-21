@@ -2,13 +2,16 @@ name: 'tag-differ'
 description: 'Diff firebase tags'
 author: 'Invertase'
 inputs:
+  base-ref:
+    required: false
+    description: 'base ref to compare against'
   extensions:
     required: true
     description: 'comma seperated list of file extensions to include'
     default: 'js,ts,kt,java,swift'
-  base-ref:
-    required: false
-    description: 'base ref to compare against'
+  github-token:
+    required: true
+    description: 'github token'
 runs:
   using: 'node16'
   main: 'dist/index.js'

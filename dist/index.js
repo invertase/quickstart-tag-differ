@@ -44,6 +44,7 @@ const core = __importStar(__nccwpck_require__(2186));
 const utils_1 = __nccwpck_require__(918);
 const github = __importStar(__nccwpck_require__(5438));
 const exec = __importStar(__nccwpck_require__(1514));
+const octokit = github.getOctokit(core.getInput('github-token'));
 function getBaseRef() {
     var _a;
     return (core.getInput('base-ref') || ((_a = github.context.payload.pull_request) === null || _a === void 0 ? void 0 : _a.base.ref));
@@ -111,6 +112,15 @@ function getAnnotationProperties(titleOrError, docTag) {
         endLine: docTag.codeEndLine
     };
 }
+function commentOnPr(docTagDiffs) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const identifier = '[dtd]: doc-tag-diff';
+        const pull = yield octokit.rest.pulls.listCommentsForReview();
+        core.debug(identifier);
+        core.debug(JSON.stringify(docTagDiffs, null, 2));
+        core.debug(JSON.stringify(pull.data, null, 2));
+    });
+}
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -130,6 +140,7 @@ function run() {
                 return;
             }
             annotatePR(docTagDiffs);
+            yield commentOnPr(docTagDiffs);
         }
         catch (error) {
             if (error instanceof Error)
