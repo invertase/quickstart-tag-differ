@@ -4,6 +4,10 @@ import { DocTagDiff, extractDocTags, findDocTagDiffs } from './utils'
 import * as github from '@actions/github'
 import * as exec from '@actions/exec'
 
+// FIXME: @octokit/types exists as a dev dependency, but eslint doesn't know that.
+// eslint-disable-next-line import/no-unresolved
+import { GetResponseDataTypeFromEndpointMethod } from '@octokit/types'
+
 const octokit = github.getOctokit(core.getInput('github-token'))
 
 function getBaseRef(): string | undefined {
@@ -66,7 +70,7 @@ function getTitleAndWarningMessage(
       case 'line_number':
         return [
           'Tag moved',
-          `Line number changed for doc tag \`${docTag.tagName}\` in file \`${filePath}\``
+          `Line number changed for doc tag \`${docTag.tagName}\``
         ]
     }
   }
@@ -91,10 +95,66 @@ function getAnnotationProperties(
 
 async function commentOnPr(docTagDiffs: DocTagDiff[]): Promise<void> {
   const identifier = '[dtd]: doc-tag-diff'
-  const pull = await octokit.rest.pulls.listCommentsForReview()
-  core.debug(identifier)
-  core.debug(JSON.stringify(docTagDiffs, null, 2))
-  core.debug(JSON.stringify(pull.data, null, 2))
+  const issueNumber =
+    github.context.payload.pull_request?.number ||
+    github.context.payload.issue?.number
+  if (!issueNumber) {
+    throw new Error('No issue number found')
+  }
+
+  let body = '### Doc Tag Diff\n\n'
+
+  const addedTags = docTagDiffs.filter(docTag => docTag.type === 'added')
+  const removedTags = docTagDiffs.filter(docTag => docTag.type === 'removed')
+  const changedTags = docTagDiffs.filter(docTag => docTag.type === 'changed')
+
+  body += `This PR makes the following changes to doc tags (${addedTags.length} added, ${removedTags.length} removed, ${changedTags.length} changed):\n\n`
+
+  if (addedTags.length) body += '#### Added\n\n'
+  for (const tag of addedTags) {
+    const [, message] = getTitleAndWarningMessage(tag)
+    body += `- ${message}\n`
+  }
+
+  if (removedTags.length) body += '#### Removed\n\n'
+  for (const tag of removedTags) {
+    const [, message] = getTitleAndWarningMessage(tag)
+    body += `- ${message}\n`
+  }
+
+  if (changedTags.length) body += '#### Changed\n\n'
+  for (const tag of changedTags) {
+    const [, message] = getTitleAndWarningMessage(tag)
+    body += `- ${message}\n`
+  }
+
+  let comment:
+    | GetResponseDataTypeFromEndpointMethod<
+        typeof octokit.rest.issues.listComments
+      >[number]
+    | undefined
+
+  for await (const { data } of octokit.paginate.iterator(
+    octokit.rest.issues.listComments,
+    { ...github.context.repo, issue_number: issueNumber }
+  )) {
+    comment = data.find(c => c.body?.includes(identifier))
+    if (comment) break
+  }
+
+  if (comment) {
+    await octokit.rest.issues.updateComment({
+      ...github.context.repo,
+      comment_id: comment.id,
+      body: `${identifier}\n${body}`
+    })
+  } else {
+    await octokit.rest.issues.createComment({
+      ...github.context.repo,
+      issue_number: issueNumber,
+      body: `${identifier}\n${body}`
+    })
+  }
 }
 
 async function run(): Promise<void> {
@@ -121,7 +181,7 @@ async function run(): Promise<void> {
     annotatePR(docTagDiffs)
     await commentOnPr(docTagDiffs)
   } catch (error) {
-    if (error instanceof Error) core.setFailed(error.message)
+    if (error instanceof Error) core.setFailed(error)
   }
 }
 

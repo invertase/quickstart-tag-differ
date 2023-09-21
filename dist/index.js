@@ -38,6 +38,13 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __asyncValues = (this && this.__asyncValues) || function (o) {
+    if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
+    var m = o[Symbol.asyncIterator], i;
+    return m ? m.call(o) : (o = typeof __values === "function" ? __values(o) : o[Symbol.iterator](), i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function () { return this; }, i);
+    function verb(n) { i[n] = o[n] && function (v) { return new Promise(function (resolve, reject) { v = o[n](v), settle(resolve, reject, v.done, v.value); }); }; }
+    function settle(resolve, reject, d, v) { Promise.resolve(v).then(function(v) { resolve({ value: v, done: d }); }, reject); }
+};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 /* eslint-disable no-console */
 const core = __importStar(__nccwpck_require__(2186));
@@ -95,7 +102,7 @@ function getTitleAndWarningMessage(docTag) {
             case 'line_number':
                 return [
                     'Tag moved',
-                    `Line number changed for doc tag \`${docTag.tagName}\` in file \`${filePath}\``
+                    `Line number changed for doc tag \`${docTag.tagName}\``
                 ];
         }
     }
@@ -113,12 +120,62 @@ function getAnnotationProperties(titleOrError, docTag) {
     };
 }
 function commentOnPr(docTagDiffs) {
+    var _a, e_1, _b, _c;
+    var _d, _e;
     return __awaiter(this, void 0, void 0, function* () {
         const identifier = '[dtd]: doc-tag-diff';
-        const pull = yield octokit.rest.pulls.listCommentsForReview();
-        core.debug(identifier);
-        core.debug(JSON.stringify(docTagDiffs, null, 2));
-        core.debug(JSON.stringify(pull.data, null, 2));
+        const issueNumber = ((_d = github.context.payload.pull_request) === null || _d === void 0 ? void 0 : _d.number) ||
+            ((_e = github.context.payload.issue) === null || _e === void 0 ? void 0 : _e.number);
+        if (!issueNumber) {
+            throw new Error('No issue number found');
+        }
+        let body = '### Doc Tag Diff\n\n';
+        const addedTags = docTagDiffs.filter(docTag => docTag.type === 'added');
+        const removedTags = docTagDiffs.filter(docTag => docTag.type === 'removed');
+        const changedTags = docTagDiffs.filter(docTag => docTag.type === 'changed');
+        body += `This PR makes the following changes to doc tags (${addedTags.length} added, ${removedTags.length} removed, ${changedTags.length} changed):\n\n`;
+        if (addedTags.length)
+            body += '#### Added\n\n';
+        for (const tag of addedTags) {
+            const [, message] = getTitleAndWarningMessage(tag);
+            body += `- ${message}\n`;
+        }
+        if (removedTags.length)
+            body += '#### Removed\n\n';
+        for (const tag of removedTags) {
+            const [, message] = getTitleAndWarningMessage(tag);
+            body += `- ${message}\n`;
+        }
+        if (changedTags.length)
+            body += '#### Changed\n\n';
+        for (const tag of changedTags) {
+            const [, message] = getTitleAndWarningMessage(tag);
+            body += `- ${message}\n`;
+        }
+        let comment;
+        try {
+            for (var _f = true, _g = __asyncValues(octokit.paginate.iterator(octokit.rest.issues.listComments, Object.assign(Object.assign({}, github.context.repo), { issue_number: issueNumber }))), _h; _h = yield _g.next(), _a = _h.done, !_a; _f = true) {
+                _c = _h.value;
+                _f = false;
+                const { data } = _c;
+                comment = data.find(c => { var _a; return (_a = c.body) === null || _a === void 0 ? void 0 : _a.includes(identifier); });
+                if (comment)
+                    break;
+            }
+        }
+        catch (e_1_1) { e_1 = { error: e_1_1 }; }
+        finally {
+            try {
+                if (!_f && !_a && (_b = _g.return)) yield _b.call(_g);
+            }
+            finally { if (e_1) throw e_1.error; }
+        }
+        if (comment) {
+            yield octokit.rest.issues.updateComment(Object.assign(Object.assign({}, github.context.repo), { comment_id: comment.id, body: `${identifier}\n${body}` }));
+        }
+        else {
+            yield octokit.rest.issues.createComment(Object.assign(Object.assign({}, github.context.repo), { issue_number: issueNumber, body: `${identifier}\n${body}` }));
+        }
     });
 }
 function run() {
@@ -144,7 +201,7 @@ function run() {
         }
         catch (error) {
             if (error instanceof Error)
-                core.setFailed(error.message);
+                core.setFailed(error);
         }
     });
 }
