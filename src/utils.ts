@@ -25,8 +25,6 @@ function createDocTagDiff(
   oldTag: DocTag,
   newTag: DocTag,
   options: {
-    includeAddedTags: boolean
-    includeRemovedTags: boolean
     includeChangedTags: boolean
     includeFilePathChanges: boolean
     includeLineNumberChanges: boolean
@@ -34,8 +32,6 @@ function createDocTagDiff(
   }
 ): DocTagDiff[] {
   const {
-    includeAddedTags,
-    includeRemovedTags,
     includeChangedTags,
     includeFilePathChanges,
     includeLineNumberChanges,
@@ -211,8 +207,6 @@ export function findDocTagDiffs(
       })
     } else if (oldTag) {
       const newDiffs = createDocTagDiff(oldTag, newTag, {
-        includeAddedTags,
-        includeRemovedTags,
         includeChangedTags,
         includeFilePathChanges,
         includeLineNumberChanges,

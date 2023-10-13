@@ -182,8 +182,20 @@ function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             const extensions = core.getInput('extensions').split(',');
+            const includedTypes = core
+                .getInput('included-types')
+                .split(',');
+            const includedChangeTypes = core
+                .getInput('included-change-types')
+                .split(',');
             if (!extensions.length) {
                 throw new Error('No extensions provided');
+            }
+            if (!includedTypes.length) {
+                throw new Error('No included types provided');
+            }
+            if (includedTypes.includes('changed') && !includedChangeTypes.length) {
+                throw new Error('No included change types provided');
             }
             const baseRef = getBaseRef();
             assertBaseRef(baseRef);
@@ -191,7 +203,10 @@ function run() {
             const currentTags = (0, utils_1.extractDocTags)(cwd, extensions);
             yield checkoutRef(baseRef, cwd);
             const baseRefTags = (0, utils_1.extractDocTags)(cwd, extensions);
-            const docTagDiffs = (0, utils_1.findDocTagDiffs)(baseRefTags, currentTags);
+            const docTagDiffs = (0, utils_1.findDocTagDiffs)(baseRefTags, currentTags, {
+                includedTypes,
+                includedChangeTypes
+            });
             if (!github.context.payload.pull_request) {
                 console.dir(JSON.stringify(docTagDiffs, null, 2));
                 return;
@@ -244,9 +259,12 @@ const fs = __importStar(__nccwpck_require__(7147));
 const path = __importStar(__nccwpck_require__(1017));
 const glob = __importStar(__nccwpck_require__(3277));
 const diff = __importStar(__nccwpck_require__(1672));
-function createDocTagDiff(oldTag, newTag) {
+function createDocTagDiff(oldTag, newTag, options) {
+    const { includeChangedTags, includeFilePathChanges, includeLineNumberChanges, includeCodeContentsChanges } = options;
     const diffs = [];
-    if (oldTag.filePath !== newTag.filePath) {
+    if (oldTag.filePath !== newTag.filePath &&
+        includeChangedTags &&
+        includeFilePathChanges) {
         diffs.push({
             filePath: newTag.filePath,
             tagName: newTag.tagName,
@@ -256,8 +274,10 @@ function createDocTagDiff(oldTag, newTag) {
             type: 'changed'
         });
     }
-    if (oldTag.codeStartLine !== newTag.codeStartLine ||
-        oldTag.codeEndLine !== newTag.codeEndLine) {
+    if ((oldTag.codeStartLine !== newTag.codeStartLine ||
+        oldTag.codeEndLine !== newTag.codeEndLine) &&
+        includeChangedTags &&
+        includeLineNumberChanges) {
         diffs.push({
             filePath: newTag.filePath,
             tagName: newTag.tagName,
@@ -267,7 +287,9 @@ function createDocTagDiff(oldTag, newTag) {
             type: 'changed'
         });
     }
-    if (oldTag.codeContents !== newTag.codeContents) {
+    if (oldTag.codeContents !== newTag.codeContents &&
+        includeChangedTags &&
+        includeCodeContentsChanges) {
         diffs.push({
             filePath: newTag.filePath,
             tagName: newTag.tagName,
@@ -327,14 +349,21 @@ function extractDocTags(directory, extensions) {
     return docTags;
 }
 exports.extractDocTags = extractDocTags;
-function findDocTagDiffs(oldTags, newTags) {
+function findDocTagDiffs(oldTags, newTags, options) {
+    const { includedTypes, includedChangeTypes } = options;
+    const includeAddedTags = includedTypes.includes('added');
+    const includeRemovedTags = includedTypes.includes('removed');
+    const includeChangedTags = includedTypes.includes('changed');
+    const includeFilePathChanges = includedChangeTypes.includes('file_path');
+    const includeLineNumberChanges = includedChangeTypes.includes('line_number');
+    const includeCodeContentsChanges = includedChangeTypes.includes('code_contents');
     const diffs = [];
     for (const oldTag of oldTags) {
         const newTag = newTags.find(tag => tag.tagName === oldTag.tagName &&
             // Match on extname too since there could be multiple files with the same tags
             // e.g a kotlin and java version of the same code snippet
             tag.filePath === oldTag.filePath);
-        if (!newTag) {
+        if (!newTag && includeRemovedTags && includeCodeContentsChanges) {
             diffs.push({
                 filePath: oldTag.filePath,
                 tagName: oldTag.tagName,
@@ -348,7 +377,7 @@ function findDocTagDiffs(oldTags, newTags) {
             // Match on extname too since there could be multiple files with the same tags
             // e.g a kotlin and java version of the same code snippet
             path.extname(tag.filePath) === path.extname(newTag.filePath));
-        if (!oldTag) {
+        if (!oldTag && includeAddedTags && includeCodeContentsChanges) {
             diffs.push({
                 filePath: newTag.filePath,
                 tagName: newTag.tagName,
@@ -358,8 +387,13 @@ function findDocTagDiffs(oldTags, newTags) {
                 type: 'added'
             });
         }
-        else {
-            const newDiffs = createDocTagDiff(oldTag, newTag);
+        else if (oldTag) {
+            const newDiffs = createDocTagDiff(oldTag, newTag, {
+                includeChangedTags,
+                includeFilePathChanges,
+                includeLineNumberChanges,
+                includeCodeContentsChanges
+            });
             if (newDiffs.length)
                 diffs.push(...newDiffs);
         }
@@ -367,7 +401,7 @@ function findDocTagDiffs(oldTags, newTags) {
     // Find removed tags
     for (const oldTag of oldTags) {
         const newTag = newTags.find(tag => tag.tagName === oldTag.tagName);
-        if (!newTag) {
+        if (!newTag && includeRemovedTags && includeCodeContentsChanges) {
             diffs.push({
                 filePath: oldTag.filePath,
                 tagName: oldTag.tagName,
