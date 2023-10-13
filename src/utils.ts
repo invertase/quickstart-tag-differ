@@ -21,9 +21,33 @@ export interface DocTagDiff {
   type: 'added' | 'removed' | 'changed'
 }
 
-function createDocTagDiff(oldTag: DocTag, newTag: DocTag): DocTagDiff[] {
+function createDocTagDiff(
+  oldTag: DocTag,
+  newTag: DocTag,
+  options: {
+    includeAddedTags: boolean
+    includeRemovedTags: boolean
+    includeChangedTags: boolean
+    includeFilePathChanges: boolean
+    includeLineNumberChanges: boolean
+    includeCodeContentsChanges: boolean
+  }
+): DocTagDiff[] {
+  const {
+    includeAddedTags,
+    includeRemovedTags,
+    includeChangedTags,
+    includeFilePathChanges,
+    includeLineNumberChanges,
+    includeCodeContentsChanges
+  } = options
   const diffs: DocTagDiff[] = []
-  if (oldTag.filePath !== newTag.filePath) {
+
+  if (
+    oldTag.filePath !== newTag.filePath &&
+    includeChangedTags &&
+    includeFilePathChanges
+  ) {
     diffs.push({
       filePath: newTag.filePath,
       tagName: newTag.tagName,
@@ -33,9 +57,12 @@ function createDocTagDiff(oldTag: DocTag, newTag: DocTag): DocTagDiff[] {
       type: 'changed'
     })
   }
+
   if (
-    oldTag.codeStartLine !== newTag.codeStartLine ||
-    oldTag.codeEndLine !== newTag.codeEndLine
+    (oldTag.codeStartLine !== newTag.codeStartLine ||
+      oldTag.codeEndLine !== newTag.codeEndLine) &&
+    includeChangedTags &&
+    includeLineNumberChanges
   ) {
     diffs.push({
       filePath: newTag.filePath,
@@ -46,7 +73,12 @@ function createDocTagDiff(oldTag: DocTag, newTag: DocTag): DocTagDiff[] {
       type: 'changed'
     })
   }
-  if (oldTag.codeContents !== newTag.codeContents) {
+
+  if (
+    oldTag.codeContents !== newTag.codeContents &&
+    includeChangedTags &&
+    includeCodeContentsChanges
+  ) {
     diffs.push({
       filePath: newTag.filePath,
       tagName: newTag.tagName,
@@ -123,8 +155,23 @@ export function extractDocTags(
 
 export function findDocTagDiffs(
   oldTags: DocTag[],
-  newTags: DocTag[]
+  newTags: DocTag[],
+  options: {
+    includedTypes: DocTagDiff['type'][]
+    includedChangeTypes: DocTagDiff['changeType'][]
+  }
 ): DocTagDiff[] {
+  const { includedTypes, includedChangeTypes } = options
+
+  const includeAddedTags = includedTypes.includes('added')
+  const includeRemovedTags = includedTypes.includes('removed')
+  const includeChangedTags = includedTypes.includes('changed')
+
+  const includeFilePathChanges = includedChangeTypes.includes('file_path')
+  const includeLineNumberChanges = includedChangeTypes.includes('line_number')
+  const includeCodeContentsChanges =
+    includedChangeTypes.includes('code_contents')
+
   const diffs: DocTagDiff[] = []
 
   for (const oldTag of oldTags) {
@@ -135,7 +182,7 @@ export function findDocTagDiffs(
         // e.g a kotlin and java version of the same code snippet
         tag.filePath === oldTag.filePath
     )
-    if (!newTag) {
+    if (!newTag && includeRemovedTags && includeCodeContentsChanges) {
       diffs.push({
         filePath: oldTag.filePath,
         tagName: oldTag.tagName,
@@ -153,7 +200,7 @@ export function findDocTagDiffs(
         // e.g a kotlin and java version of the same code snippet
         path.extname(tag.filePath) === path.extname(newTag.filePath)
     )
-    if (!oldTag) {
+    if (!oldTag && includeAddedTags && includeCodeContentsChanges) {
       diffs.push({
         filePath: newTag.filePath,
         tagName: newTag.tagName,
@@ -162,8 +209,15 @@ export function findDocTagDiffs(
         changeType: 'code_contents',
         type: 'added'
       })
-    } else {
-      const newDiffs = createDocTagDiff(oldTag, newTag)
+    } else if (oldTag) {
+      const newDiffs = createDocTagDiff(oldTag, newTag, {
+        includeAddedTags,
+        includeRemovedTags,
+        includeChangedTags,
+        includeFilePathChanges,
+        includeLineNumberChanges,
+        includeCodeContentsChanges
+      })
       if (newDiffs.length) diffs.push(...newDiffs)
     }
   }
@@ -171,7 +225,7 @@ export function findDocTagDiffs(
   // Find removed tags
   for (const oldTag of oldTags) {
     const newTag = newTags.find(tag => tag.tagName === oldTag.tagName)
-    if (!newTag) {
+    if (!newTag && includeRemovedTags && includeCodeContentsChanges) {
       diffs.push({
         filePath: oldTag.filePath,
         tagName: oldTag.tagName,

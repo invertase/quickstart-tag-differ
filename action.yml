@@ -12,6 +12,16 @@ inputs:
   github-token:
     required: true
     description: 'github token'
+  included-types:
+    description: |
+      comma seperated list of types of diffs. 
+      Accepted values are 'added', 'removed' and 'changed'
+    default: 'added,removed,changed'
+  inluded-change-types:
+    description: |
+      comma seperated list of types of changes for the 'changed' subtype. 
+      Accepted values are 'file_path',line_number' and 'code_contents'
+    default: 'file_path,line_number,code_contents'
 runs:
   using: 'node16'
   main: 'dist/index.js'

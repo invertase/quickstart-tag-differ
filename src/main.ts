@@ -160,8 +160,23 @@ async function commentOnPr(docTagDiffs: DocTagDiff[]): Promise<void> {
 async function run(): Promise<void> {
   try {
     const extensions = core.getInput('extensions').split(',')
+    const includedTypes = core
+      .getInput('included-types')
+      .split(',') as DocTagDiff['type'][]
+    const includedChangeTypes = core
+      .getInput('included-change-types')
+      .split(',') as DocTagDiff['changeType'][]
+
     if (!extensions.length) {
       throw new Error('No extensions provided')
+    }
+
+    if (!includedTypes.length) {
+      throw new Error('No included types provided')
+    }
+
+    if (includedTypes.includes('changed') && !includedChangeTypes.length) {
+      throw new Error('No included change types provided')
     }
 
     const baseRef = getBaseRef()
@@ -171,7 +186,10 @@ async function run(): Promise<void> {
     const currentTags = extractDocTags(cwd, extensions)
     await checkoutRef(baseRef, cwd)
     const baseRefTags = extractDocTags(cwd, extensions)
-    const docTagDiffs = findDocTagDiffs(baseRefTags, currentTags)
+    const docTagDiffs = findDocTagDiffs(baseRefTags, currentTags, {
+      includedTypes,
+      includedChangeTypes
+    })
 
     if (!github.context.payload.pull_request) {
       console.dir(JSON.stringify(docTagDiffs, null, 2))
