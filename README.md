@@ -13,8 +13,6 @@ It looks for the following syntax for tags:
 
 ## Usage
 
-The
-
 ```yaml
 - uses: actions/checkout@v2
 - uses: invertase/quickstart-tag-differ@0.0.1
