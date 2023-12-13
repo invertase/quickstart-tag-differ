@@ -17,7 +17,7 @@ The
 
 ```yaml
 - uses: actions/checkout@v2
-- uses: invertase/quickstart-tag-differ@v1
+- uses: invertase/quickstart-tag-differ@0.0.1
   with:
     base-ref: main # optional, defaults the pull request base ref or errors if not a pull request
     extensions: js,ts # optional, defaults to `js,ts,kt,java,swift`
