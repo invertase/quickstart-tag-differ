@@ -28,7 +28,7 @@
     "@actions/exec": "^1.1.1",
     "@actions/github": "^6.0.0",
     "diff": "^5.1.0",
-    "glob": "^10.3.3"
+    "glob": "^10.3.10"
   },
   "devDependencies": {
     "@octokit/types": "^12.4.0",
